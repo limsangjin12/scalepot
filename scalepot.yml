@@ -1,0 +1,12 @@
+roles:
+    - name: worker
+      type: c1.medium
+      min: 3
+      max: 3
+    - name: web
+      type: c1.medium
+      min: 2
+      max: 20
+az: ap-northeast-1
+scale-out-threshold: 60
+scale-down-ratio: 0.7

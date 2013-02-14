@@ -1,0 +1,8 @@
+PyYAML==3.10
+Werkzeug==0.8.3
+argparse==1.2.1
+boto==2.8.0
+distribute==0.6.31
+gevent==0.13.8
+greenlet==0.4.0
+wsgiref==0.1.2

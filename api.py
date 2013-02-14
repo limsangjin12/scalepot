@@ -5,12 +5,11 @@ from boto.ec2 import cloudwatch
 from werkzeug import LocalStack, LocalProxy
 import gevent
 from gevent.pool import Group
-import collections
 
 
 _roles = []
 _scale_func = None
-_scale_check_func = {}
+_scale_check_func = None
 _ec2_conn = None
 _cloudwatch_conn = None
 
@@ -20,27 +19,10 @@ _scale_down_ratio = 0.7
 
 _scale_queue = Group()
 _scale_ctx_stack = LocalStack()
-scaleinfo = LocalProxy(lambda: _scale_ctx_stack.top)
+g = LocalProxy(lambda: _scale_ctx_stack.top)
 
 
-class FrozenDict(collections.Mapping):
-    def __init__(self, *args, **kwargs):
-        self._d = dict(*args, **kwargs)
-
-    def __iter__(self):
-        return iter(self._d)
-
-    def __len__(self):
-        return len(self._d)
-
-    def __getitem__(self, key):
-        return self._d[key]
-
-    def __hash__(self):
-        return hash(tuple(sorted(self._d.iteritems())))
-
-
-class NoScalingFunctionError(Exception):
+class ScaleError(Exception):
     pass
 
 
@@ -58,8 +40,8 @@ class Role(object):
 
 
 class ScaleInfo(object):
-    def __init__(self, roledict, state=None, instance=None, count=None):
-        self.role = Role(roledict)
+    def __init__(self, role, state=None, instance=None, count=None):
+        self.role = role
         self.state = state
         self.instance = instance
         self._count = count
@@ -77,17 +59,17 @@ def scale(func):
     if _scale_func is None:
         _scale_func = func
     else:
-        raise Exception('scaling function is already exist')
+        raise ScaleError('scaling function is already exist')
     return func
 
 
-def scale_check(*roles):
+def scale_check(func):
     global _scale_check_func
-    def register(func):
-        for role in roles:
-            _scale_check_func[role] = func
-        return func
-    return register
+    if _scale_check_func is None:
+        _scale_check_func = func
+    else:
+        raise ScaleError('scale-check function is already exist')
+    return func
 
 
 def get_ec2_connection():
@@ -137,7 +119,7 @@ def cpu_utilization(instances, minutes=10):
 
 
 def check_cpu_utilization(role):
-    instances = get_instances(role['name'])
+    instances = get_instances(role.name)
     value = cpu_utilization(instances)
     if value  > _scale_out_threshold:
         return State.SCALE_OUT
@@ -153,21 +135,19 @@ def action(role, state):
             # launch instance here
             info.state = State.SCALE_OUT
         else:
-            raise NoScalingFunctionError('scale_out function ' +
-                                         'must be defined.')
+            raise ScaleError('scale function must be defined.')
     elif state == State.SCALE_DOWN:
         if _scale_func is not None:
             # terminate instance here
             info.state = State.SCALE_DOWN
         else:
-            raise NoScalingFunctionError('scale_down function ' +
-                                         'must be defined.')
+            raise ScaleError('scale function must be defined.')
     elif state == State.MAX_LIMIT:
         info.state = State.MAX_LIMIT
     elif state == State.NORMAL:
         info.state = State.NORMAL
     else:
-        raise Exception('there is no state ' + repr(state))
+        raise ScaleError('state ' + repr(state) + 'does not exist')
     _scale_ctx_stack.push(info)
     _scale_func()
     _scale_ctx_stack.pop()
@@ -176,14 +156,15 @@ def action(role, state):
 def ready(role):
     info = ScaleInfo(role)
     _scale_ctx_stack.push(info)
-    if role in _scale_check_func:
-        action(role, _scale_check_func[role]())
+    if _scale_check_func is not None:
+        action(role, _scale_check_func())
     else:
         action(role, check_cpu_utilization(role))
     _scale_ctx_stack.pop()
 
 
 def check():
-    for role in _roles:
-        _scale_queue.spawn(ready, FrozenDict(role))
+    for roledict in _roles:
+        role = Role(roledict)
+        _scale_queue.spawn(ready, role)
     _scale_queue.join()

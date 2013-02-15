@@ -3,10 +3,18 @@ roles:
       type: c1.medium
       min: 3
       max: 3
+      ami: ami-86db6187
+      option: on-demand
+      cooltime: 20
+      placement: b
     - name: web
       type: c1.medium
       min: 2
       max: 20
+      ami: ami-86db6187
+      option: on-demand
+      cooltime: 15
+      placement: b
 az: ap-northeast-1
 scale-out-threshold: 60
 scale-down-ratio: 0.7

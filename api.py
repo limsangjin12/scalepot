@@ -7,13 +7,12 @@ import gevent
 from gevent.pool import Group
 
 
-_roles = []
+_roles = None
 _scale_func = None
 _scale_check_func = None
 _ec2_conn = None
 _cloudwatch_conn = None
-
-_region_name = 'ap-northeast-1'
+_region_name = None
 _scale_out_threshold = 60
 _scale_down_ratio = 0.7
 
@@ -30,17 +29,24 @@ class State(object):
     SCALE_OUT = 'SHOULD SCALE OUT'
     SCALE_DOWN = 'SHOULD SCALE DOWN'
     MAX_LIMIT = 'MAX LIMIT REACHED'
+    MIN_LIMIT = 'MIN LIMIT REACHED'
     NORMAL = 'NORMAL'
+
+    def __contains__(self, key):
+        # must be implemented
+        pass
 
 
 class Role(object):
     def __init__(self, roledict):
+        # validate arguments here
         for key in roledict.iterkeys():
             setattr(self, key, roledict[key])
 
 
 class ScaleInfo(object):
     def __init__(self, role, state=None, instance=None, count=None):
+        # validate arguments here
         self.role = role
         self.state = state
         self.instance = instance
@@ -59,7 +65,7 @@ def scale(func):
     if _scale_func is None:
         _scale_func = func
     else:
-        raise ScaleError('scaling function is already exist')
+        raise ScaleError('Scaling function is already exist.')
     return func
 
 
@@ -68,7 +74,7 @@ def scale_check(func):
     if _scale_check_func is None:
         _scale_check_func = func
     else:
-        raise ScaleError('scale-check function is already exist')
+        raise ScaleError('Scale-check function is already exist.')
     return func
 
 
@@ -94,7 +100,7 @@ def get_instances(role=None):
                               if inst.state == 'running']
     if role is not None:
         instances = [inst for inst in instances
-                              if inst.tags.get('Purpose') == role]
+                              if inst.tags.get('Role') == role]
     return instances
 
 
@@ -121,33 +127,80 @@ def cpu_utilization(instances, minutes=10):
 def check_cpu_utilization(role):
     instances = get_instances(role.name)
     value = cpu_utilization(instances)
-    if value  > _scale_out_threshold:
+    if value > _scale_out_threshold:
+        if role.max <= role.count:
+            return State.MAX_LIMIT
         return State.SCALE_OUT
     elif value < _scale_out_threshold * _scale_down_ratio:
+        if role.min >= role.count:
+            return State.MIN_LIMIT
         return State.SCALE_DOWN
     return State.NORMAL
 
 
+def launch_instance(role, timeout=60, interval=5):
+    conn = get_ec2_connection()
+    resv = conn.run_instances(role.ami,
+                              instance_type=role.type,
+                              placement=_region_name + \
+                                        role.placement)
+    for instance in resv.instances:
+        trial = 0
+        while instance.state != 'running':
+            gevent.sleep(interval)
+            instance.update()
+            trial++
+            if trial * interval > timeout:
+                raise ScaleError('Cannot launch instance.')
+        instance.create_tags([instance.id],
+                             {'Name': role.name,
+                              'Role': role.name})
+        return instance
+
+
 def action(role, state):
+    # validate state here
     info = ScaleInfo(role)
     if state == State.SCALE_OUT:
-        if _scale_func is not None:
-            # launch instance here
-            info.state = State.SCALE_OUT
+        if role.option == 'on-demand':
+            try:
+                instance = launch_instance(role)
+            except:
+                raise ScaleError('Cannot launch instance.')
+            else:
+                info.instance = instance
+                info.state = State.SCALE_OUT
+        elif role.option == 'spot':
+            raise NotImplementedError('Must be implemented spot-scaling.')
         else:
-            raise ScaleError('scale function must be defined.')
+            raise ScaleError('Option ' + repr(role.option) + \
+                             'does not exist')
     elif state == State.SCALE_DOWN:
-        if _scale_func is not None:
-            # terminate instance here
-            info.state = State.SCALE_DOWN
+        if role.option == 'on-demand':
+            for instance in get_instances(role.name):
+                try:
+                    instance.terminate()
+                except:
+                    continue
+                else:
+                    break
+            else:
+                raise ScaleError('Instance termination failed.' + \
+                                 'Cannot scale-down.')
+        elif role.option == 'spot':
+            raise NotImplementedError('Must be implemented spot-scaling.')
         else:
-            raise ScaleError('scale function must be defined.')
+            raise ScaleError('Option ' + repr(role.option) + \
+                             'does not exist.')
+        info.state = State.SCALE_DOWN
     elif state == State.MAX_LIMIT:
         info.state = State.MAX_LIMIT
+    elif state == State.MIN_LIMIT:
+        info.state = State.MIN_LIMIT
     elif state == State.NORMAL:
         info.state = State.NORMAL
     else:
-        raise ScaleError('state ' + repr(state) + 'does not exist')
+        raise ScaleError('State ' + repr(state) + 'does not exist.')
     _scale_ctx_stack.push(info)
     _scale_func()
     _scale_ctx_stack.pop()

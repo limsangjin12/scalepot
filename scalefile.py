@@ -12,4 +12,6 @@ def scale_check():
     print '<Scale Check Delegate>'
     print scaleinfo.role.name
     print scaleinfo.count
-    return State.SCALE_OUT
+    if scaleinfo.role.name == 'worker':
+        return State.MAX_LIMIT
+    return State.NORMAL

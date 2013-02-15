@@ -17,6 +17,20 @@ def load_config():
     return yaml.load(config)
 
 
+def print_iter(obj):
+    if type(obj) == dict:
+        for o in obj.iterkeys():
+            print '<'+o+'>'
+            print_iter(obj[o])
+    elif type(obj) == list or \
+       type(obj) == tuple or \
+       type(obj) == set:
+        for o in obj:
+            print_iter(o)
+    else:
+        print obj
+
+
 def main():
     print 'scalepot v0.1'
     import_scalefile()
@@ -28,6 +42,8 @@ def main():
     api._region_name = config['az']
     api._scale_out_threshold = config['scale-out-threshold']
     api._scale_down_ratio = config['scale-down-ratio']
+    print_iter(config)
+    print '----------------------'
 
     # check and scale
     api.check()
@@ -35,4 +51,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

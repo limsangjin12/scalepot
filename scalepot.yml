@@ -16,5 +16,5 @@ roles:
       cooltime: 15
       placement: b
 az: ap-northeast-1
-scale-out-threshold: 60
-scale-down-ratio: 0.7
+scale_out_threshold: 60
+scale_down_ratio: 0.7

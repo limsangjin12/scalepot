@@ -2,7 +2,7 @@ from gevent.pool import Group
 from werkzeug import LocalStack, LocalProxy
 from ec2 import get_instances, cpu_utilization, launch_instance
 from exceptions import *
-from utils import State, Role, ScaleInfo, AttributeDict
+from utils import State, Role, ScaleInfo, AttributeDict, get_roledict_by_name
 
 
 config = AttributeDict({
@@ -21,11 +21,11 @@ g = LocalProxy(lambda: _scale_ctx_stack.top)
 def check_cpu_utilization(role):
     instances = get_instances(role.name)
     value = cpu_utilization(instances)
-    if value > _scale_out_threshold:
+    if value > config.scale_out_threshold:
         if role.max <= g.count:
             return State.MAX_LIMIT
         return State.SCALE_OUT
-    elif value < _scale_out_threshold * _scale_down_ratio:
+    elif value < config.scale_out_threshold * config.scale_down_ratio:
         if role.min >= g.count:
             return State.MIN_LIMIT
         return State.SCALE_DOWN
@@ -89,13 +89,6 @@ def ready(role):
     else:
         action(role, check_cpu_utilization(role))
     _scale_ctx_stack.pop()
-
-
-def get_roledict_by_name(rolename):
-    for roledict in config.roles:
-        if roledict['name'] == rolename:
-            return roledict
-    return None
 
 
 def tick(rolename=None):

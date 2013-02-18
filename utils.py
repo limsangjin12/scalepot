@@ -24,8 +24,7 @@ class State(object):
 class Role(object):
     def __init__(self, roledict):
         # validate arguments here
-        for key in roledict.iterkeys():
-            setattr(self, key, roledict[key])
+        setattr_dict(self, roledict)
 
 
 class ScaleInfo(object):
@@ -42,6 +41,18 @@ class ScaleInfo(object):
             instances = get_instances(self.role.name)
             self._count = len(instances)
         return self._count
+
+
+def get_roledict_by_name(rolename):
+    for roledict in config.roles:
+        if roledict['name'] == rolename:
+            return roledict
+    return None
+
+
+def setattr_dict(obj, dict_):
+    for key in dict_.iterkeys():
+        setattr(obj, key, dict_[key])
 
 
 def sort_with_timestamp(items):

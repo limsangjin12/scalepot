@@ -1,52 +1,43 @@
-import argparse
+from sys import argv
+from imp import load_source
 import yaml
+import argparse
 import do
 import ec2
-
-
-def import_scalefile():
-    # find and import scalefile module here
-    import scalefile
+from utils import setattr_dict
 
 
 def arg_parse():
+    global _implemention_file_path, _config_file_path
     parser = argparse.ArgumentParser(description='scalepot v0.1')
+    parser.add_argument('--file', '-f',
+                        help='Your implemention file path. ' + \
+                             'Default is ./scalepot.py',
+                        type=str,
+                        default='./scalepot.py')
+    parser.add_argument('--config', '-c',
+                        help='Your config file path. ' + \
+                             'Default is ./scalepot.yml',
+                        type=str,
+                        default='./scalepot.yml')
+    namespace = parser.parse_args(argv[1:])
+    _implemention_file_path = namespace.file
+    _config_file_path = namespace.config
 
 
-def load_config():
-    config = file('scalepot.yml', 'r')
-    return yaml.load(config)
-
-
-def print_iter(obj):
-    if type(obj) == dict:
-        for o in obj.iterkeys():
-            print '<'+o+'>'
-            print_iter(obj[o])
-    elif type(obj) == list or \
-       type(obj) == tuple or \
-       type(obj) == set:
-        for o in obj:
-            print_iter(o)
-    else:
-        print obj
+def load_config(path):
+    config_file = file(path, 'r')
+    config = yaml.load(config_file)
+    setattr_dict(do.config, config)
+    ec2.region_name = config['az']
+    return config
 
 
 def main():
     print 'scalepot v0.1'
-    import_scalefile()
     arg_parse()
-
-    # setup configuration
-    config = load_config()
-    do.config.roles = config['roles']
-    do.config.scale_out_threshold = config['scale-out-threshold']
-    do.config.scale_down_ratio = config['scale-down-ratio']
-    ec2.region_name = config['az']
-    print_iter(config)
-    print '----------------------'
-
-    # check and scale
+    load_config(_config_file_path)
+    load_source('implemention_part', _implemention_file_path)
     do.tick()
 
 

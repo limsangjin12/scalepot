@@ -1,8 +1,8 @@
 from gevent.pool import Group
 from werkzeug import LocalStack, LocalProxy
-from ec2 import get_instances, cpu_utilization, launch_instance
-from exceptions import *
-from utils import State, Role, ScaleInfo, AttributeDict, get_roledict_by_name
+from scalepot.ec2 import get_instances, cpu_utilization, launch_instance
+from scalepot.exceptions import *
+from scalepot.utils import State, Role, ScaleInfo, AttributeDict, get_roledict_by_name
 
 
 config = AttributeDict({

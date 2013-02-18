@@ -1,4 +1,4 @@
-from ec2 import get_instances
+from scalepot.ec2 import get_instances
 
 
 class AttributeDict(dict):

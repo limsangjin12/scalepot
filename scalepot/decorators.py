@@ -1,4 +1,4 @@
-from do import config
+from scalepot.do import config
 
 
 def scale(func):

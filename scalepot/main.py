@@ -2,9 +2,9 @@ from sys import argv
 from imp import load_source
 import yaml
 import argparse
-import do
-import ec2
-from utils import setattr_dict
+from scalepot import do
+from scalepot import ec2
+from scalepot.utils import setattr_dict
 
 
 def arg_parse():

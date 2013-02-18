@@ -1,4 +1,4 @@
-from api import scale, check, State, g as scaleinfo
+from scalepot.api import scale, check, State, g as scaleinfo
 
 @scale
 def scale():

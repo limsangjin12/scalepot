@@ -1,4 +1,4 @@
-from api import scale, scale_check, State, g as scaleinfo
+from api import scale, check, State, g as scaleinfo
 
 @scale
 def scale():
@@ -7,7 +7,7 @@ def scale():
     print scaleinfo.state
     print scaleinfo.count
 
-@scale_check
+@check
 def scale_check():
     print '<Scale Check Delegate>'
     print scaleinfo.role.name

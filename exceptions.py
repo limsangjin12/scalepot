@@ -1,0 +1,2 @@
+class ScaleError(Exception):
+    pass

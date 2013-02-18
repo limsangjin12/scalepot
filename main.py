@@ -1,6 +1,7 @@
 import argparse
-import api
 import yaml
+import do
+import ec2
 
 
 def import_scalefile():
@@ -38,15 +39,15 @@ def main():
 
     # setup configuration
     config = load_config()
-    api._roles = config['roles']
-    api._region_name = config['az']
-    api._scale_out_threshold = config['scale-out-threshold']
-    api._scale_down_ratio = config['scale-down-ratio']
+    do.config.roles = config['roles']
+    do.config.scale_out_threshold = config['scale-out-threshold']
+    do.config.scale_down_ratio = config['scale-down-ratio']
+    ec2.region_name = config['az']
     print_iter(config)
     print '----------------------'
 
     # check and scale
-    api.check()
+    do.tick()
 
 
 if __name__ == '__main__':

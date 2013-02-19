@@ -65,7 +65,8 @@ def action(role, state):
                     if instance.spot_instance_request_id is not None:
                         spot_request_id = instance.spot_instance_request_id
                         get_spot_request_by_id(spot_request_id).cancel()
-                    info.instance = instance.update()
+                    instance.update()
+                    info.instance = instance
                 except:
                     continue
                 else:

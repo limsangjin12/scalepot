@@ -1,8 +1,11 @@
 from gevent.pool import Group
 from werkzeug import LocalStack, LocalProxy
-from scalepot.ec2 import get_instances, cpu_utilization, launch_instance
+from scalepot.ec2 import (get_instances, cpu_utilization,
+                          launch_instance, launch_spot_instance,
+                          get_spot_request_by_id)
 from scalepot.exceptions import *
-from scalepot.utils import State, Role, ScaleInfo, AttributeDict, get_roledict_by_name
+from scalepot.utils import (State, Role, ScaleInfo,
+                            AttributeDict, get_roledict_by_name)
 
 
 config = AttributeDict({
@@ -34,19 +37,14 @@ def check_cpu_utilization(role):
 
 
 def action(role, state):
-    # validate state here
-    info = ScaleInfo(role)
+    info = ScaleInfo(role, state)
     if state == State.SCALE_OUT:
         if role.option == 'on-demand':
-            try:
-                instance = launch_instance(role)
-            except:
-                raise ScaleError('Cannot launch instance.')
-            else:
-                info.instance = instance
-                info.state = State.SCALE_OUT
+            instance = launch_instance(role)
+            info.instance = instance
         elif role.option == 'spot':
-            raise NotImplementedError('Must be implemented spot-scaling.')
+            instance = launch_spot_instance(role)
+            info.instance = instance
         else:
             raise ScaleError('Option ' + repr(role.option) + \
                              'does not exist')
@@ -63,17 +61,29 @@ def action(role, state):
                 raise ScaleError('Instance termination failed.' + \
                                  'Cannot scale-down.')
         elif role.option == 'spot':
-            raise NotImplementedError('Must be implemented spot-scaling.')
+            for instance in get_instances(role.name):
+                try:
+                    instance.terminate()
+                    if instance.spot_instance_request_id is not None:
+                        spot_request_id = instance.spot_instance_request_id
+                        get_spot_request_by_id(spot_request_id).cancel()
+                except:
+                    continue
+                else:
+                    break
+            else:
+                raise ScaleError('Instance termination failed.' + \
+                                 'Cannot scale-down.')
         else:
             raise ScaleError('Option ' + repr(role.option) + \
                              'does not exist.')
         info.state = State.SCALE_DOWN
     elif state == State.MAX_LIMIT:
-        info.state = State.MAX_LIMIT
+        pass
     elif state == State.MIN_LIMIT:
-        info.state = State.MIN_LIMIT
+        pass
     elif state == State.NORMAL:
-        info.state = State.NORMAL
+        pass
     else:
         raise ScaleError('State ' + repr(state) + 'does not exist.')
     _scale_ctx_stack.push(info)

@@ -2,6 +2,7 @@ from scalepot.ec2 import get_instances
 
 
 class AttributeDict(dict):
+
     def __getattr__(self, key):
         return self[key]
 
@@ -10,10 +11,15 @@ class AttributeDict(dict):
 
 
 class State(object):
+
     SCALE_OUT = 'SHOULD SCALE OUT'
+
     SCALE_DOWN = 'SHOULD SCALE DOWN'
+
     MAX_LIMIT = 'MAX LIMIT REACHED'
+
     MIN_LIMIT = 'MIN LIMIT REACHED'
+
     NORMAL = 'NORMAL'
 
     def __contains__(self, key):
@@ -22,12 +28,14 @@ class State(object):
 
 
 class Role(object):
+
     def __init__(self, roledict):
         # validate arguments here
         setattr_dict(self, roledict)
 
 
 class ScaleInfo(object):
+
     def __init__(self, role, state=None, instance=None, count=None):
         # validate arguments here
         self.role = role
@@ -47,7 +55,6 @@ def get_roledict_by_name(rolename):
     for roledict in config.roles:
         if roledict['name'] == rolename:
             return roledict
-    return None
 
 
 def setattr_dict(obj, dict_):

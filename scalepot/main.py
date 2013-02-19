@@ -4,13 +4,12 @@ import yaml
 import argparse
 from scalepot import do
 from scalepot import ec2
-from scalepot.utils import setattr_dict
 
 
 def arg_parse():
     global _implemention_file_path, _config_file_path
     parser = argparse.ArgumentParser(description='scalepot v0.1')
-    parser.add_argument('implemention',
+    parser.add_argument('--implemention', '-i',
                         help='Your implemention file path. ' + \
                              'Default is ./scalepot.py',
                         type=str,
@@ -28,7 +27,7 @@ def arg_parse():
 def load_config(path):
     config_file = file(path, 'r')
     config = yaml.load(config_file)
-    setattr_dict(do.config, config)
+    do.config.update(config)
     ec2.region_name = config['az']
     return config
 
@@ -38,4 +37,4 @@ def main():
     arg_parse()
     load_config(_config_file_path)
     load_source('implemention', _implemention_file_path)
-    do.tick()
+    do.run_forever()

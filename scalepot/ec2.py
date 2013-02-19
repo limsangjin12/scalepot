@@ -69,7 +69,8 @@ def launch_instance(role):
         conn.create_tags([instance.id],
                          {'Name': role.name,
                           'Role': role.name})
-        return instance.update()
+        instance.update()
+        return instance
 
 
 def get_spot_request_by_id(id):
@@ -91,7 +92,7 @@ def spot_price(role, hours=6):
     return sum(price.price for price in prices) / len(prices)
 
 
-def wait_for_fulfilled(request, timeout=300, interval=15):
+def wait_for_fulfill(request, timeout=300, interval=15):
     trial = timeout / interval
     while request.state != 'active':
         trial -= 1
@@ -115,13 +116,14 @@ def launch_spot_instance(role):
                 instance_type=role.type,
                 placement=region_name+role.placement)
     for request in requests:
-        request = wait_for_fulfilled(request)
+        request = wait_for_fulfill(request)
         instance = get_instance_by_id(request.instance_id)
         wait_for_launch(instance)
         conn.create_tags([instance.id],
                          {'Name': role.name,
                           'Role': role.name})
-        return instance.update()
+        instance.update()
+        return instance
 
 
 def cpu_utilization(instances, minutes=10):

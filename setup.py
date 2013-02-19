@@ -12,6 +12,7 @@ setup(
     author='Sangjin Lim',
     author_email='limsangjin12@gmail.com',
     install_requires=require_packages,
+    packages=['scalepot'],
     entry_points={
         'console_scripts': [
             'scalepot = scalepot.main:main',

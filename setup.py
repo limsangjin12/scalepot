@@ -7,6 +7,7 @@ with open('requirements.txt', 'r') as req:
 
 setup(
     name='scalepot',
+    description='An auto-scaling tool working on ec2',
     version='0.1',
     url='http://github.com/limsangjin12/scalepot',
     author='Sangjin Lim',

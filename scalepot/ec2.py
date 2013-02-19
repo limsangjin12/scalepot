@@ -3,6 +3,7 @@ from datetime import timedelta
 from datetime import datetime
 from boto import ec2
 from boto.ec2 import cloudwatch
+from scalepot.exceptions import *
 
 
 region_name = None
@@ -44,15 +45,14 @@ def get_instance_by_id(id):
             return instance
 
 
-def wait_for_launch(instance, timeout=60, interval=5):
+def wait_for_run(instance, timeout=60, interval=5):
     trial = timeout / interval
-    while instance.state !='running':
+    for _ in xrange(trial):
         gevent.sleep(interval)
         instance.update()
-        trial -= 1
-        if trial < 0:
+        if instance.state == 'running':
             break
-    if instance.state != 'running':
+    else:
         instance.terminate()
         raise ScaleError('Timed out. Cannot launch instance.')
     return instance
@@ -65,7 +65,7 @@ def launch_instance(role):
                               placement=_region_name + \
                                         role.placement)
     for instance in resv.instances:
-        wait_for_launch(instance)
+        wait_for_run(instance)
         conn.create_tags([instance.id],
                          {'Name': role.name,
                           'Role': role.name})
@@ -94,13 +94,12 @@ def spot_price(role, hours=6):
 
 def wait_for_fulfill(request, timeout=300, interval=15):
     trial = timeout / interval
-    while request.state != 'active':
-        trial -= 1
-        if trial < 0:
-            break
+    for _ in xrange(trial):
         gevent.sleep(interval)
         request = get_spot_request_by_id(request.id)
-    if request.instance_id == None:
+        if request.state == 'active':
+            break
+    else:
         request.cancel()
         raise ScaleError('Timed out. Cannot launch spot instance.')
     return request
@@ -118,7 +117,7 @@ def launch_spot_instance(role):
     for request in requests:
         request = wait_for_fulfill(request)
         instance = get_instance_by_id(request.instance_id)
-        wait_for_launch(instance)
+        wait_for_run(instance)
         conn.create_tags([instance.id],
                          {'Name': role.name,
                           'Role': role.name})
@@ -139,5 +138,8 @@ def cpu_utilization(instances, minutes=10):
                     namespace='AWS/EC2',
                     statistics=['Average'],
                     dimensions={'InstanceId': instance.id})
-        stat_sum += sum(stat['Average'] for stat in stats) / len(stats)
+        if stats:
+            stat_sum += sum(stat['Average'] for stat in stats) / len(stats)
+        else:
+            raise ScaleError('Stat semms empty.')
     return stat_sum / len(instances)

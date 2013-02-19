@@ -22,7 +22,10 @@ g = LocalProxy(lambda: _scale_ctx_stack.top)
 
 def check_cpu_utilization(role):
     instances = get_instances(role.name)
-    value = cpu_utilization(instances)
+    try:
+        value = cpu_utilization(instances)
+    except ScaleError:
+        return State.NORMAL
     if role.min > g.count:
         return State.SCALE_OUT
     elif value > config.scale_out_threshold:

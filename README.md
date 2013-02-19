@@ -12,7 +12,11 @@ Getting Started
 
         $ git clone git@github.com:limsangjin12/scalepot.git && cd scalepot
         $ python setup.py install
-    
+
+    or
+
+        $ pip install scalepot
+
 * Write `scalepot.py`.
 
         from scalepot.api import scale, State, g as scaleinfo        

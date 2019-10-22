@@ -1,5 +1,5 @@
 PyYAML==3.10
-Werkzeug==0.8.3
+Werkzeug==0.15.3
 argparse==1.2.1
 boto==2.8.0
 distribute==0.6.31
